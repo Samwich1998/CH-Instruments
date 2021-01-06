@@ -35,10 +35,14 @@ else:
         if not os.path.isfile(data_Directory + CV_CSV_Data):
             print("The File ", data_Directory + CV_CSV_Data," Mentioned Does NOT Exist")
             exit()
-
-# Create Output Folder
-outputData = data_Directory +  "Full Time CV Curve/"
-os.system("mkdir '" + outputData + "'")
+ 
+# Create Output Folder if None
+try:
+    outputData = data_Directory +  "Full Time CV Curve/"
+    os.mkdir(outputData)
+# Else, Continue On
+except:
+    pass
 
 # ---------------------------------------------------------------------------#
 

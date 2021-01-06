@@ -46,9 +46,13 @@ else:
             print("The File ", data_Directory + CV_CSV_Data," Mentioned Does NOT Exist")
             exit()
 
-# Create Output Folder
-outputData = data_Directory +  "Peak_Current_Plots/"
-os.system("mkdir '" + outputData + "'")
+# Create Output Folder if None
+try:
+    outputData = data_Directory +  "Peak_Current_Plot/"
+    os.mkdir(outputData)
+# Else, Continue On
+except:
+    pass
 
 # ---------------------------------------------------------------------------#
 
