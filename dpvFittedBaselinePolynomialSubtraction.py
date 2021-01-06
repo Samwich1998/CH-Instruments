@@ -21,15 +21,18 @@ use_All_CSV_Files = True # If False, Populate the CV_CSV_Data_List Yourself in t
 data_Directory = "../NASA Project Cortisol/Prussian Blue/01-5-2021 Cortisol DPV/" # The Path to the Folder with the CSV Files
 
 # Use CHI's Predicted Peak Values (Must be in CSV/Excel)
-useCHIPeaks = True
-# SUPER IMPORTANT PARAMETER THAT WILL CHANGE YOUR PEAK MAGNITUDE
-order = 3
-Iterations = 15
+useCHIPeaks = False  # Only Performs Baseline Subtractiomn if CHI Didnt Label a Peak
+# If useCHIPeaks is False: THESE ARE SUPER IMPORTANT PARAMETERS THAT WILL CHANGE YOUR PEAK
+order = 3        # Order of the Polynomial Fit in Baseline Calculation
+Iterations = 15  # The Number of Polynomial Fit and Subtractions in Baseline Calculation
 
 # Specify Figure Asthetics
 numSubplotWidth = 4
 figWidth = 25
 figHeight = 13
+
+# Make Subplots of Only Final Current or Show All Steps
+displayOnlyBaselineSubtraction = False
 
 # ---------------------------------------------------------------------------#
 # --------------------- Specify/Find File Names -----------------------------#
@@ -54,6 +57,9 @@ else:
             print("The File ", data_Directory + CV_CSV_Data," Mentioned Does NOT Exist")
             exit()
 
+# Specify Which Files to Ignore
+ignoreFiles = []
+
 # Create Output Folder if None
 try:
     outputData = data_Directory +  "Peak_Current_Plots/"
@@ -70,7 +76,7 @@ except:
 def normalize(point, low, high):
         return (point-low)/(high-low)
 
-def saveplot(fig1):
+def saveplot(fig1, axisLimits, base, outputData):
     # Plot and Save
     plt.title(base + " DPV Graph")
     plt.xlabel("Potential (V)")
@@ -86,18 +92,10 @@ def saveSubplot(fig):
     #fig.legend(bbox_to_anchor=(.5, 1))
     #plt.subplots_adjust(hspace=0.5, wspace=0.5)
     fig.savefig(outputData + "subplots.png", dpi=300)
+    
 
-"""
-def expFit(fitI, potential, order):
-    baselineCurrent = np.zeros(len(potential))
-    potential = np.array(potential)
-    for i in range(len(potential)):
-        for degree in range(1, 1+order):
-            baselineCurrent[i] += np.exp(fitI[-degree]*(potential[i]**degree))
-    return baselineCurrent
-"""
-
-def getBase(potential, current, Iterations, order):
+def getBase(potential, currentReal, Iterations, order):
+    current = currentReal.copy()
     for _ in range(Iterations):
         fitI = np.polyfit(potential, current, order)
         baseline = np.polyval(fitI, potential)
@@ -110,11 +108,14 @@ def getBase(potential, current, Iterations, order):
 # ---------------------------------------------------------------------------#
 # -------------------- Extract and Plot the Ip Data -------------------------#
 
-# For Eaqch CSV File, Extract the Important Data and Plot
+# Create One Plot with All the DPV Curves
 fig, ax = plt.subplots(math.ceil(len(CV_CSV_Data_List)/numSubplotWidth), numSubplotWidth, sharey=False, sharex = True, figsize=(figWidth,figHeight))
 fig.tight_layout(pad=3.0)
-data = {}
-for i,CV_CSV_Data in enumerate(sorted(CV_CSV_Data_List)):    
+data = {}  # Store Results ina Dictionary for Later Analaysis
+# For Each CSV File, Extract the Important Data and Plot
+for figNum, CV_CSV_Data in enumerate(sorted(CV_CSV_Data_List)):
+    if CV_CSV_Data in ignoreFiles:
+        continue
     
     # ----------------- Convert Data to Excel Format ------------------------#
     
@@ -142,6 +143,40 @@ for i,CV_CSV_Data in enumerate(sorted(CV_CSV_Data_List)):
     Main = WB_worksheets[0]
         
     # -----------------------------------------------------------------------#
+    # ----------------------- Extract Run Info ------------------------------#
+    
+    # Set Initial Variables from last Run to Zero
+    deltaV = None; endVolt = None; initialVolt = None; Vp = None; Ip = None
+    # Loop Through the Info Section and Extract the Needxed Run Info from Excel
+    for cell in Main['A']:
+        # Get Cell Value
+        cellVal = cell.value
+        if cellVal == None:
+            continue
+        
+        # Find the deltaV for Each Step (Volts)
+        if cellVal.startswith("Incr E (V) = "):
+            deltaV = float(cellVal.split(" = ")[-1])
+        # Find the Final Voltage
+        elif cellVal.startswith("Final E (V) = "):
+            endVolt = float(cellVal.split(" = ")[-1])
+        # Find the Initial Voltage
+        elif cellVal.startswith("Init E (V) = "):
+            initialVolt = float(cellVal.split(" = ")[-1])
+        # If Peak Found by CHI, Get Peak Potential
+        elif cellVal.startswith("Ep = "):
+            Vp = float(cellVal.split(" = ")[-1][:-1])
+        # If Peak Found by CHI, Get Peak Current
+        elif cellVal.startswith("ip = "):
+            Ip = float(cellVal.split(" = ")[-1][:-1])
+        elif cellVal == "Potential/V":
+            startDataRow = cell.row + 2
+            break
+    # Find the X Axis Width
+    xRange = (endVolt - initialVolt)
+    # Find Point/Scan
+    pointsPerScan = int(xRange/deltaV)
+    # -----------------------------------------------------------------------#
     # -------------------- Find Ip Data and Plot ----------------------------#
     
     # Get Potential, Current Data from Excel
@@ -156,30 +191,148 @@ for i,CV_CSV_Data in enumerate(sorted(CV_CSV_Data_List)):
         potential.append(float(cell.value))
         current.append(float(Main['B'][row].value))
         
-    # Plot the Data
-    fig1 = plt.figure(2+i)
-    plt.plot(potential, current, label="True Data: " + base)  
+    # Plot the Initial Data
+    fig1 = plt.figure(2+figNum) # Leaving 2 Figures Free for Other plots
+    plt.plot(potential, current, label="True Data: " + base, color='C0')
     
-    # Get Baseline
-    current1 = current.copy()
-    baseline = getBase(potential, current.copy(), Iterations, order)
+    # If We use the CHI Peaks, Skip Peak Detection
+    if useCHIPeaks and Ip != None and Vp != None:
+        # Set Axes Limits
+        axisLimits = [min(current) - min(current)/10, max(current) + max(current)/10]
+        
+    # Else, Perform baseline Subtraction to Find the peak
+    else:
+        # Get Baseline
+        baseline = getBase(potential, current, Iterations, order)
+        
+        # Plot Subtracted baseline
+        baselineCurrent = current - baseline
+        plt.plot(potential, baselineCurrent, label="Current After Baseline Subtraction", color='C2')
+        plt.plot(potential, baseline, label="Baseline Current", color='C1')  
+        
+        # Find Where Data Begins to Deviate from the Edges
+        minimums = argrelextrema(baselineCurrent, np.less)[0]
+        stopInitial = minimums[0]
+        stopFinal = minimums[-1]
+        
+        # Get the Peak Current (Max Differenc between the Data and the Baseline)
+        IpIndex = np.argmax(baselineCurrent[stopInitial:stopFinal+1])
+        Ip = baselineCurrent[stopInitial+IpIndex]
+        Vp = potential[stopInitial+IpIndex]
     
-    # Plot Subtracted baseline
-    baselineCurrent = current - baseline
-    plt.plot(potential, baseline, label="Baseline Current")  
-    plt.plot(potential, baselineCurrent, label="Baseline Subtraction")
+        # Plot the Peak Current (Verticle Line) for Visualization
+        axisLimits = [min(baselineCurrent) - min(baselineCurrent)/10, max(current) + max(current)/10]
+        plt.axvline(x=Vp, ymin=normalize(baseline[stopInitial+IpIndex], axisLimits[0], axisLimits[1]), ymax=normalize(float(Ip+baseline[stopInitial+IpIndex]), axisLimits[0], axisLimits[1]), linewidth=2, color='r', label="Peak Current: " + "%.4g"%Ip)
     
-    # Find Where Data Begins to Deviate from the Edges
-    minimums = argrelextrema(baselineCurrent, np.less)[0]
-    stopInitial = minimums[0]
-    stopFinal = minimums[-1]
+    # Save Figure
+    saveplot(fig1, axisLimits, base, outputData)
     
-    # Get the Peak Current (Max Differenc between the Data and the Baseline)
-    IpIndex = np.argmax(baselineCurrent[stopInitial:stopFinal+1])
-    Ip = baselineCurrent[stopInitial+IpIndex]
-    Vp = potential[stopInitial+IpIndex]
+    # Keep Running Subplots Order
+    if numSubplotWidth == 1 and len(CV_CSV_Data_List) == 1:
+        currentAxes = ax
+    elif numSubplotWidth == 1:
+        currentAxes = ax[figNum]
+    elif numSubplotWidth == len(CV_CSV_Data_List):
+        currentAxes = ax[figNum]
+    elif numSubplotWidth > 1:
+        currentAxes = ax[figNum//numSubplotWidth][figNum%numSubplotWidth]
+    else:
+        print("numSubplotWidth CANNOT be < 1. Currently it is: ", numSubplotWidth)
+        exit
     
-    """
+    # Plot Data in Subplots
+    if useCHIPeaks and Ip != None and Vp != None:
+        currentAxes.plot(potential, current, label="True Data: " + base, color='C0')
+        currentAxes.axvline(x=Vp, ymin=normalize(max(current) - Ip, currentAxes.get_ylim()[0], currentAxes.get_ylim()[1]), ymax=normalize(max(current), currentAxes.get_ylim()[0], currentAxes.get_ylim()[1]), linewidth=2, color='r', label="Peak Current: " + "%.4g"%Ip)
+        currentAxes.legend(loc='upper left')  
+    elif displayOnlyBaselineSubtraction:
+        currentAxes.plot(potential, baselineCurrent, label="Current After Baseline Subtraction", color='C1')
+        currentAxes.axvline(x=Vp, ymin=normalize(0, currentAxes.get_ylim()[0], currentAxes.get_ylim()[1]), ymax=normalize(float(Ip), currentAxes.get_ylim()[0], currentAxes.get_ylim()[1]), linewidth=2, color='r', label="Peak Current: " + "%.4g"%Ip)
+        currentAxes.legend(loc='upper left')  
+    else:
+        currentAxes.plot(potential, current, label="True Data: " + base, color='C0')
+        currentAxes.plot(potential, baselineCurrent, label="Current After Baseline Subtraction", color='C2')
+        currentAxes.axvline(x=Vp, ymin=normalize(baseline[stopInitial+IpIndex], currentAxes.get_ylim()[0], currentAxes.get_ylim()[1]), ymax=normalize(float(Ip+baseline[stopInitial+IpIndex]), currentAxes.get_ylim()[0], currentAxes.get_ylim()[1]), linewidth=2, color='r', label="Peak Current: " + "%.4g"%Ip)
+        currentAxes.plot(potential, baseline, label="Baseline Current", color='C1')  
+        currentAxes.legend(loc='best')  
+
+
+    currentAxes.set_xlabel("Potential (V)")
+    currentAxes.set_ylabel("Current (Amps)")
+    currentAxes.set_title(base)
+    
+    # Save Data in a Dictionary for Plotting Later
+    data[base] = Ip
+    
+            
+# ---------------------------------------------------------------------------#
+# --------------------- Plot and Save the Data ------------------------------#
+
+saveSubplot(fig)
+plt.title(base + " DPV Graph") # Need this Line as we Change the Title When we Save Subplots
+plt.show() # Must be the Last Line
+
+# ---------------------------------------------------------------------------#
+# -------------- Specific Plotting Method for This Data ---------------------#
+# ----------------- USER SPECIFIC (USER SHOULD EDIT) ------------------------#
+
+
+fig = plt.figure(0)
+#fig.tight_layout(pad=3) #tight margins
+fig.set_figwidth(6.5)
+#ax = fig.add_axes([0.1, 0.1, 0.7, 0.9])
+for i,filename in enumerate(sorted(data.keys())):
+    # Extract Data from Name
+    stringDigits = re.findall(r'\d+', filename) 
+    digitsInName = list(map(int, stringDigits))
+    if len(digitsInName) == 2:
+        concentration = digitsInName[0]
+        timePoint = digitsInName[1]
+    elif len(digitsInName) == 1:
+        concentration = 0
+        timePoint = digitsInName[0]
+    else:
+        print("Found Too Many Numbers in the FileName")
+        exit
+    print(filename, timePoint, concentration)
+    
+    # Get Peak Current
+    Ip = data[filename]
+    
+    
+    if i == 8:
+        i += 1
+        time = []
+        current = []
+    
+    if i%2 == 0:
+        time = [timePoint]
+        current  = [Ip]
+    else:
+        time.append(timePoint)
+        current.append(Ip)
+        
+        # Plot Ip
+        plt.plot(time, current, 'o-', label=filename.split("-")[0])
+    
+    
+# Plot Curves
+plt.title("Time Dependant DPV Peak Current: Cortisol")
+plt.xlabel("Time (minutes)")
+plt.ylabel("DPV Peak Current (Amps)")
+plt.legend(loc=9, bbox_to_anchor=(1.2, 1))
+plt.savefig(outputData + "Time Dependant DPV Curve Cortisol.png", dpi=300)
+plt.show()
+      
+
+
+
+
+
+
+"""
+Deleted Code:
+    
     # Fit Lines to Ends of Graph
     m0, b0 = np.polyfit(potential[0:edgeCollectionLeft], current[0:edgeCollectionLeft], 1)
     mf, bf = np.polyfit(potential[-edgeCollectionRight:-1], current[-edgeCollectionRight:-1], 1)
@@ -209,88 +362,4 @@ for i,CV_CSV_Data in enumerate(sorted(CV_CSV_Data_List)):
     plt.plot(potential, cs(xs), label="Spline Interpolation")
     axisLimits = [min(current) - min(current)/10, max(current) + max(current)/10]
     """
-    
-    # Plot the Peak Current (Verticle Line) for Visualization
-    axisLimits = [min(baselineCurrent) - min(baselineCurrent)/10, max(current) + max(current)/10]
-    plt.axvline(x=Vp, ymin=normalize(baseline[stopInitial+IpIndex], axisLimits[0], axisLimits[1]), ymax=normalize(float(Ip+baseline[stopInitial+IpIndex]), axisLimits[0], axisLimits[1]), linewidth=2, color='r', label="Peak Current: " + "%.4g"%Ip)
-    saveplot(fig1)
-    
-    # Keep Running Subplots Order
-    if numSubplotWidth == 1 and len(CV_CSV_Data_List) == 1:
-        currentAxes = ax
-    elif numSubplotWidth == 1:
-        currentAxes = ax[figNum]
-    elif numSubplotWidth == len(CV_CSV_Data_List):
-        currentAxes = ax[figNum]
-    elif numSubplotWidth > 1:
-        currentAxes = ax[figNum//numSubplotWidth][figNum%numSubplotWidth]
-    else:
-        print("numSubplotWidth CANNOT be < 1. Currently it is: ", numSubplotWidth)
-        exit
-    #currentAxes.plot(potential, current, label="True Data")  
-    currentAxes.plot(potential, baselineCurrent, label="baselineCurrent")
-    currentAxes.axvline(x=Vp, ymin=normalize(0, currentAxes.get_ylim()[0], currentAxes.get_ylim()[1]), ymax=normalize(float(Ip), currentAxes.get_ylim()[0], currentAxes.get_ylim()[1]), linewidth=2, color='r', label="Peak Current: " + "%.4g"%Ip)
-    
-    #currentAxes.plot(potential, current, label="True Data: " + base)  
-    #currentAxes.plot(potential, baseline, label="Baseline Current")  
-    #currentAxes.plot(potential, baselineCurrent, label="Baseline Subtraction")
-    #currentAxes.axvline(x=Vp, ymin=normalize(baseline[stopInitial+IpIndex], currentAxes.get_ylim()[0], currentAxes.get_ylim()[1]), ymax=normalize(float(Ip+baseline[stopInitial+IpIndex]), currentAxes.get_ylim()[0], currentAxes.get_ylim()[1]), linewidth=2, color='r', label="Peak Current: " + "%.4g"%Ip)
-    
-    currentAxes.set_xlabel("Potential (V)")
-    currentAxes.set_ylabel("Current (Amps)")
-    currentAxes.set_title(base)
-    currentAxes.legend()  
-    
-    # Save Data in a Dictionary for Plotting Later
-    data[base] = Ip
-    
-            
-# ---------------------------------------------------------------------------#
-# --------------------- Plot and Save the Data ------------------------------#
-
-saveSubplot(fig)
-plt.title(base + " DPV Graph") # Need this Line as we Change the Title When we Save Subplots
-plt.show() # Must be the Last Line
-
-# -------------- Specific Plotting Method for This Data----------------------#
-
-
-fig = plt.figure(0)
-#fig.tight_layout(pad=3) #tight margins
-fig.set_figwidth(6.5)
-#ax = fig.add_axes([0.1, 0.1, 0.7, 0.9])
-for i,filename in enumerate(sorted(data.keys())):
-    # Extract Data from Name
-    stringDigits = re.findall(r'\d+', filename) 
-    digitsInName = list(map(int, stringDigits)) 
-    concentration = digitsInName[0]
-    timePoint = digitsInName[1]
-    print(filename, timePoint, concentration)
-    
-    # Get Peak Current
-    Ip = data[filename]
-    
-    if i%2 == 0:
-        time = [timePoint]
-        current  = [Ip]
-    else:
-        time.append(timePoint)
-        current.append(Ip)
-        
-        # Plot Ip
-        plt.plot(time, current, 'o-', label=filename.split("-7")[0])
-    
-    
-# Plot Curves
-plt.title("Time Dependant DPV Peak Current: NIP")
-plt.xlabel("Time (minutes)")
-plt.ylabel("DPV Peak Current (Amps)")
-plt.legend(loc=9, bbox_to_anchor=(1.2, 1))
-plt.savefig(outputData + "Time Dependant DPV NIP.png", dpi=300)
-plt.show()
-      
-
-
-
-
     
