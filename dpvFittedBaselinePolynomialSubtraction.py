@@ -9,7 +9,6 @@ import csv
 import os
 import openpyxl as xl
 import matplotlib.pyplot as plt
-from scipy.interpolate import CubicSpline
 import numpy as np
 import re
 import math

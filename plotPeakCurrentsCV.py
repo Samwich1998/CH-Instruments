@@ -15,7 +15,7 @@ import re
 # -------------------------- User Can Edit ----------------------------------#
 
 use_All_CSV_Files = True # If False, Populate the CV_CSV_Data_List Yourself
-data_Directory = "../NASA Project Cortisol/Prussian Blue/12-24-2020 Precursor Analysis/" # The Folder with the CSV Files
+data_Directory = "../NASA Project Cortisol/Prussian Blue/01-5-2021 The Good Ones/" # The Folder with the CSV Files; Must End in /
 
 # Specify Figure Asthetics
 numSubplotWidth = 4
