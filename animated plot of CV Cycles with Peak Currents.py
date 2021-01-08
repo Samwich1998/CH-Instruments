@@ -1,9 +1,13 @@
 
 """
-Need to Install on the Anaconda Prompt:
+Need to Install Once on the Anaconda Prompt or Python Terminal:
     $ conda install openpyxl
     % conda install ffmpeg
 """
+
+# ------------------------ Imported Packages --------------------------------#
+
+# Import Packages
 import csv
 import os
 import openpyxl as xl
@@ -12,11 +16,12 @@ import matplotlib.animation as manimation
 import math
 import re
 
+# ---------------------------------------------------------------------------#
 
 # -------------------------- User Can Edit ----------------------------------#
 
 use_All_CSV_Files = True # If False, Populate the CV_CSV_Data_List Yourself
-data_Directory = "../NASA Project Cortisol/Prussian Blue/01-5-2021 The Good Ones/" # The Folder with the CSV Files
+data_Directory = "../NASA Project Cortisol/Prussian Blue/01-7-2021 Optimizing NiHCF Part 2/" # The Folder with the CSV Files
 showPeakCurrent = True # Display Real-Time Peak Current Data on Right (ONLY IF Peak Current Exists)
 seePastCVData = True   # See All CSV Frames in the Background
 peakError = 0.04       # deltaV Difference that Defines a New Peak
@@ -88,7 +93,7 @@ def findPeakNum(peakDict, peakNum, potentialAdding):
 # -------------------- Extract and Plot the Ip Data -------------------------#
 
 # For Eaqch CSV File, Extract the Important Data and Plot
-for CV_CSV_Data in CV_CSV_Data_List:    
+for CV_CSV_Data in CV_CSV_Data_List: 
     
     # ----------------- Convert Data to Excel Format ------------------------#
     
