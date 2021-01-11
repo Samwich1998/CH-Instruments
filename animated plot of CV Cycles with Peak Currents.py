@@ -21,7 +21,7 @@ import re
 # -------------------------- User Can Edit ----------------------------------#
 
 use_All_CSV_Files = True # If False, Populate the CV_CSV_Data_List Yourself
-data_Directory = "../NASA Project Cortisol/Prussian Blue/01-7-2021 Optimizing NiHCF Part 2/" # The Folder with the CSV Files
+data_Directory = "C:/Data/Jiaobing/01112021/PB ink/" # The Folder with the CSV Files
 showPeakCurrent = True # Display Real-Time Peak Current Data on Right (ONLY IF Peak Current Exists)
 seePastCVData = True   # See All CSV Frames in the Background
 peakError = 0.04       # deltaV Difference that Defines a New Peak
@@ -310,16 +310,18 @@ for CV_CSV_Data in CV_CSV_Data_List:
                 legendList = []
                 for currentPeak in peakPlotHolder.keys():
                     peakDirection, peakNum = currentPeak.split("|")
+                    EpDirection = peakDirection[:4] + 'Potential' + peakDirection[11:]
                     cyclePeak = "cycleNumber" + peakDirection[11:]
                     try:
                         indexFrame = cycleNumber[cyclePeak][int(peakNum)].index(frameNum+1)
                     except:
-                        legendList.append(peakDirection[11:] + " Peak Current " + peakNum + " = NA")
+                        legendList.append(peakDirection[11:] + " Peak (" + peakNum + "): NA")
                         continue
                     Ip = peakCurrent[peakDirection][int(peakNum)][:indexFrame+1]
+                    Ep = peakPotential[EpDirection][int(peakNum)][:indexFrame+1]
                     cycle = cycleNumber[cyclePeak][int(peakNum)][:indexFrame+1]
                     movieGraphRight = peakPlotHolder[currentPeak]
-                    legendList.append(peakDirection[11:] + " Peak Current " + peakNum + " = " + "%.4g"%Ip[-1] + " Amps")
+                    legendList.append(peakDirection[11:] + " Peak (" + peakNum + "): Ep = " + "%.4g"%Ep[-1] + " Volts ; Ip = " + "%.4g"%Ip[-1] + " Amps")
                     movieGraphRight.set_data(cycle, Ip)
                 axRight.legend(legendList, loc="upper left")
 
