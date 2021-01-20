@@ -13,18 +13,22 @@ import os
 import openpyxl as xl
 import matplotlib.pyplot as plt
 import matplotlib.animation as manimation
+import numpy as np
 import math
 import re
+import statistics as stat
 
 # ---------------------------------------------------------------------------#
 
 # -------------------------- User Can Edit ----------------------------------#
 
 use_All_CSV_Files = True # If False, Populate the CV_CSV_Data_List Yourself
-data_Directory = "C:/Data/Jiaobing/01112021/PB ink/" # The Folder with the CSV Files
+data_Directory = "C:/Users/weiga/Desktop/Sam/NASA Project Cortisol/Prussian Blue/2021/01-19-2021 Synthesis in PBS/" # The Folder with the CSV Files
+skipIfDataAlreadyExcel = True # Dont Redo Data Plotting if CSV->Excel has Already Been Done
 showPeakCurrent = True # Display Real-Time Peak Current Data on Right (ONLY IF Peak Current Exists)
 seePastCVData = True   # See All CSV Frames in the Background
-peakError = 0.04       # deltaV Difference that Defines a New Peak
+showFullInfo = True   # NOT IMPLEMENTED YET! See Standard Deviation Plot and Sperate Forward/Reverse Peak Plots
+peakError = 0.04       # deltaV (Potential) Difference that Defines a New Peak (For Peak Labeling)
 
 # Specify Figure Asthetics
 peakCurrentRightColorOrder = {
@@ -112,8 +116,11 @@ for CV_CSV_Data in CV_CSV_Data_List:
                 ws.append(row)
         # Save as New Excel File
         wb.save(excel_file)
+    elif skipIfDataAlreadyExcel:
+        print("You already renamed the '.csv' to '.xlsx'; Hence, we are skipping file:", base)
+        continue
     else:
-        print("You already renamed the '.csv' to '.xlsx'")
+        print("You already renamed the '.csv' to '.xlsx'; Will Redo Plots Anyways")
     
     # Load Data from New Excel File
     WB = xl.load_workbook(excel_file)
@@ -244,9 +251,16 @@ for CV_CSV_Data in CV_CSV_Data_List:
     figWidth = 20
     figHeight = 8
     if (peakCurrent["peakCurrentForward"] != {} or peakCurrent["peakCurrentReverse"])and showPeakCurrent:
-        fig, ax = plt.subplots(1, 2, sharey=False, sharex = False, figsize=(figWidth,figHeight))
-        axLeft = ax[0]
-        axRight = ax[1]
+        if showFullInfo:
+            fig, ax = plt.subplots(2, 2, sharey=False, sharex = False, figsize=(figWidth,figHeight))
+            axLeft = ax[0,0]
+            axRight = ax[0,1]
+            axLowerLeft = ax[1,0]
+            axLowerRight = ax[1,1]
+        else:
+            fig, ax = plt.subplots(1, 2, sharey=False, sharex = False, figsize=(figWidth,figHeight))
+            axLeft = ax[0]
+            axRight = ax[1]
     else:
         fig, axLeft = plt.subplots(1, 1, sharey=False, sharex = False, figsize=(figWidth/2,figHeight))
             
@@ -267,7 +281,7 @@ for CV_CSV_Data in CV_CSV_Data_List:
     axLeft.set_ylabel("Current (Amps)")
     
     if (peakCurrent["peakCurrentForward"] != {} or peakCurrent["peakCurrentReverse"])and showPeakCurrent:
-        # Repreat for Second Graph
+        # Repeat for Second Graph
         peakPlotHolder = {}
         for peakNum in peakCurrent["peakCurrentForward"].keys():
             peakPlotHolder["peakCurrentForward|" + str(peakNum)] = axRight.plot([], [], '-o', c=peakCurrentRightColorOrder["peakCurrentForward|" + str(peakNum)], linewidth=1)[0]
@@ -289,6 +303,39 @@ for CV_CSV_Data in CV_CSV_Data_List:
         axRight.set_title("Peak Current Over CV Scan")
         axRight.set_xlabel("Cycle Number")
         axRight.set_ylabel("Peak Current (Amps)")
+        
+        # If Adding Potential and Standard Deviation
+        if showFullInfo:
+            # Repeat for Third and Forth Graph
+            for peakNum in peakPotential["peakPotentialForward"].keys():
+                peakPlotHolder["peakPotentialForward|" + str(peakNum)] = axLowerLeft.plot([], [], '-o', c=peakCurrentRightColorOrder["peakCurrentForward|" + str(peakNum)], linewidth=1)[0]
+                peakPlotHolder["peakStatsForward|" + str(peakNum)] = axLowerRight.plot([], [], '-o', c=peakCurrentRightColorOrder["peakCurrentForward|" + str(peakNum)], linewidth=1)[0]
+            for peakNum in peakPotential["peakPotentialReverse"].keys():
+                peakPlotHolder["peakPotentialReverse|" + str(peakNum)] = axLowerLeft.plot([], [], '-o', c=peakCurrentRightColorOrder["peakCurrentReverse|" + str(peakNum)], linewidth=1)[0]
+                peakPlotHolder["peakStatsReverse|" + str(peakNum)] = axLowerRight.plot([], [], '-o', c=peakCurrentRightColorOrder["peakCurrentReverse|" + str(peakNum)], linewidth=1)[0]
+            # Set Axis X,Y Limits: Taking min/max of both dictionarys and then min/max between the values
+            if peakPotential["peakPotentialForward"] == {}:
+                peakLow = min((min(peakPotential["peakPotentialReverse"].values(),key=min)))
+                peakHigh = max((max(peakPotential["peakPotentialReverse"].values(),key=max)))
+            elif peakPotential["peakPotentialReverse"] == {}:
+                peakLow = min((min(peakPotential["peakPotentialForward"].values(),key=min)))
+                peakHigh = max((max(peakPotential["peakPotentialForward"].values(),key=max)))
+            else:
+                peakLow = min(min(min(peakPotential["peakPotentialForward"].values(),key=min)), min((min(peakPotential["peakPotentialReverse"].values(),key=min))))
+                peakHigh = max(max(max(peakPotential["peakPotentialForward"].values(),key=max)), max((max(peakPotential["peakPotentialReverse"].values(),key=max))))
+            axLowerRight.set_xlim(0, totalFrames)
+            axLowerRight.set_ylim(0,30) # Greater Than 30 is Considered NOT Acceptable (Hence, I Will Cut it Off)
+            axLowerLeft.set_xlim(0, totalFrames)
+            axLowerLeft.set_ylim(peakLow - 0.2*abs(peakLow), peakHigh + 0.2*abs(peakLow))
+            # Label Axis + Add Title
+            axLowerLeft.set_title("Peak Potential Over CV Scan")
+            axLowerLeft.set_xlabel("Cycle Number")
+            axLowerLeft.set_ylabel("Peak Potential (Volts)")
+            # Set Axis and Title for Stats
+            axLowerRight.set_title("Peak Current's Coefficient of Variation Over CV Scan")
+            axLowerRight.set_xlabel("Cycle Number")
+            axLowerRight.set_ylabel("Standard Error")
+            
     
     fig.tight_layout(pad=2.0)
     
@@ -307,23 +354,59 @@ for CV_CSV_Data in CV_CSV_Data_List:
                     
             # Set Right Side
             if (peakCurrent["peakCurrentForward"] != {} or peakCurrent["peakCurrentReverse"])and showPeakCurrent:
-                legendList = []
+                legendListRight = []
+                legendListLowerLeft = []
+                legendListLowerRight = []
                 for currentPeak in peakPlotHolder.keys():
+                    # Catagorize the Peak
                     peakDirection, peakNum = currentPeak.split("|")
+                    if peakDirection[:11] != "peakCurrent":
+                        continue
                     EpDirection = peakDirection[:4] + 'Potential' + peakDirection[11:]
+                    potentialPeak = EpDirection + "|" + peakNum
+                    statsPeak =  peakDirection[:4] + 'Stats' + peakDirection[11:]  + "|" + peakNum
                     cyclePeak = "cycleNumber" + peakDirection[11:]
+                    # If No Peak Current, Label NA
                     try:
                         indexFrame = cycleNumber[cyclePeak][int(peakNum)].index(frameNum+1)
                     except:
-                        legendList.append(peakDirection[11:] + " Peak (" + peakNum + "): NA")
+                        legendListRight.append(peakDirection[11:] + " Peak (" + peakNum + "): NA")
+                        if showFullInfo:
+                            legendListLowerLeft.append(peakDirection[11:] + " Peak (" + peakNum + "): NA")
+                            legendListLowerRight.append(peakDirection[11:] + " Peak (" + peakNum + "): NA")
                         continue
+                    # Get Peak Current, Potential, and Cycle
                     Ip = peakCurrent[peakDirection][int(peakNum)][:indexFrame+1]
                     Ep = peakPotential[EpDirection][int(peakNum)][:indexFrame+1]
                     cycle = cycleNumber[cyclePeak][int(peakNum)][:indexFrame+1]
+                    # Get Statistics of Peak Current
+                    IpSTD = [0]
+                    CoefficientofVariationList = ["NA"]
+                    CoefficientofVariation = "NA"
+                    for IpNum in range(1,len(Ip)):
+                        IpSTD.append(stat.stdev(Ip[:IpNum + 1]))
+                        CoefficientofVariation = abs(IpSTD[-1]/stat.mean(Ip))*100
+                        CoefficientofVariationList.append(CoefficientofVariation)
+                    # Plot Peak Currents
                     movieGraphRight = peakPlotHolder[currentPeak]
-                    legendList.append(peakDirection[11:] + " Peak (" + peakNum + "): Ep = " + "%.4g"%Ep[-1] + " Volts ; Ip = " + "%.4g"%Ip[-1] + " Amps")
+                    legendListRight.append(peakDirection[11:] + " Peak (" + peakNum + "): Ep = " + "%.3g"%Ep[-1] + " Volts ; Ip = " + "%.4g"%Ip[-1] + " Amps")
                     movieGraphRight.set_data(cycle, Ip)
-                axRight.legend(legendList, loc="upper left")
+                    if showFullInfo:
+                        # Plot Peak Potential
+                        movieGraphLowerLeft = peakPlotHolder[potentialPeak]
+                        legendListLowerLeft.append(peakDirection[11:] + " Peak (" + peakNum + "): Ep = " + "%.3g"%Ep[-1] + " Volts ; Ip = " + "%.4g"%Ip[-1] + " Amps")
+                        movieGraphLowerLeft.set_data(cycle, Ep)
+                        # Plot Peak Current Standard Error
+                        movieGraphLowerRight = peakPlotHolder[statsPeak]
+                        if CoefficientofVariationList[-1] == "NA":
+                            legendListLowerRight.append(peakDirection[11:] + " Peak (" + peakNum + "): NA")
+                        else:
+                            legendListLowerRight.append(peakDirection[11:] + " Peak (" + peakNum + "): Peak Current's Coefficient of Variation = " + "%.3g"%CoefficientofVariation + "%")
+                        movieGraphLowerRight.set_data(cycle[1:], CoefficientofVariationList[1:])
+                axRight.legend(legendListRight, loc="upper left")
+                if showFullInfo:
+                    axLowerLeft.legend(legendListLowerLeft, loc="upper left")
+                    axLowerRight.legend(legendListLowerRight, loc="upper left")
 
             # Write to Video
             writer.grab_frame()
