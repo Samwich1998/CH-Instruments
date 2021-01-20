@@ -21,7 +21,7 @@ import re
 # -------------------------- User Can Edit ----------------------------------#
 
 use_All_CSV_Files = True # If False, Populate the CV_CSV_Data_List Yourself
-data_Directory = "C:/Data/Jiaobing/01112021/PB ink/" # The Folder with the CSV Files
+data_Directory = "/Users/samuelsolomon/Desktop/Gao Group/NASA Project Cortisol/Prussian Blue/01-5-2021 The Good Ones/" # The Folder with the CSV Files
 showPeakCurrent = True # Display Real-Time Peak Current Data on Right (ONLY IF Peak Current Exists)
 seePastCVData = True   # See All CSV Frames in the Background
 peakError = 0.04       # deltaV Difference that Defines a New Peak
