@@ -13,7 +13,6 @@ import os
 import openpyxl as xl
 import matplotlib.pyplot as plt
 import matplotlib.animation as manimation
-import numpy as np
 import math
 import re
 import statistics as stat
@@ -22,13 +21,19 @@ import statistics as stat
 
 # -------------------------- User Can Edit ----------------------------------#
 
-use_All_CSV_Files = True # If False, Populate the CV_CSV_Data_List Yourself
-data_Directory = "C:/Users/weiga/Desktop/Sam/NASA Project Cortisol/Prussian Blue/2021/01-19-2021 Synthesis in PBS/" # The Folder with the CSV Files
-skipIfDataAlreadyExcel = True # Dont Redo Data Plotting if CSV->Excel has Already Been Done
-showPeakCurrent = True # Display Real-Time Peak Current Data on Right (ONLY IF Peak Current Exists)
-seePastCVData = True   # See All CSV Frames in the Background
-showFullInfo = True   # NOT IMPLEMENTED YET! See Standard Deviation Plot and Sperate Forward/Reverse Peak Plots
-peakError = 0.04       # deltaV (Potential) Difference that Defines a New Peak (For Peak Labeling)
+# Specify Directory/Folder with All the Data (CSV Files Exported from CHI)
+data_Directory = "C:/Users/weiga/Desktop/Sam/NASA Project Cortisol/Prussian Blue/2021/01-21-2021 PBS Printing Day 2/" # The Folder with the CSV Files
+
+# Edit What is Plotted
+skipIfDataAlreadyExcel = False  # Skip Over Data if CSV->Excel has Already Been Done (No Graphs!)
+use_All_CSV_Files = True        # If False, Populate the CV_CSV_Data_List Yourself (Choose Your Files Below)
+showPeakCurrent = True          # Display Real-Time Peak Current Data on Right (ONLY IF Peak Current Exists)
+seePastCVData = True            # See All CSV Frames in the Background (with 10% opacity)
+showFullInfo = True             # Plot Peak Potential and See Coefficient of VariationList Plot for peak Current
+
+# Edit Data
+numInitCyclesToSkip = 1         # Number of Beginning Cycles to Skip (In the First Few Cycles the Electrode is Adapting).
+peakError = 0.04                # deltaV (Potential) Difference that Defines a New Peak (For Peak Labeling)
 
 # Specify Figure Asthetics
 peakCurrentRightColorOrder = {
@@ -42,6 +47,10 @@ peakCurrentRightColorOrder = {
     "peakCurrentReverse|4": "tab:cyan",
     }
 
+# If use_All_CSV_Files is False, These Files Will be Used
+CV_CSV_Data_List = [
+     'Cold CuNiHCF PBS EthOH-H20 Full Run.csv',
+]
 
 # ---------------------------------------------------------------------------#
 
@@ -53,10 +62,6 @@ if use_All_CSV_Files:
         if file.endswith(".csv"):
             CV_CSV_Data_List.append(file)
 else:
-    CV_CSV_Data_List = [
-         'LiBis.csv',
-         ]
-    
     # Check to see if the Inputed CSV Files Exist
     for CV_CSV_Data in CV_CSV_Data_List:    
         if not os.path.isfile(data_Directory + CV_CSV_Data):
@@ -161,6 +166,9 @@ for CV_CSV_Data in CV_CSV_Data_List:
     xRange = (highVolt - lowVolt)*2
     # Find Point/Scan
     pointsPerScan = int(xRange/sampleInterval)
+    # Adjust Which Cycle you Start at
+    skipOffset = int(numInitCyclesToSkip*pointsPerScan)
+    dataIndex += skipOffset
     # Total Frames (Will Round Down to Remove Incomplete Scans); Frame = Cycle = 2 Segments
     totalFrames = math.floor((Main.max_row - dataIndex + 1)/pointsPerScan)
     numberOfSegments = totalFrames*2
@@ -209,20 +217,32 @@ for CV_CSV_Data in CV_CSV_Data_List:
     cycleNumber = {"cycleNumberForward":{}, "cycleNumberReverse":{}}
     peakPotential = {"peakPotentialForward":{}, "peakPotentialReverse":{}}
     cycleNum = 0
-    for rowA in Main.iter_rows(min_col=1, min_row=startSegment, max_col=1, max_row=dataIndex - 4):
+    for rowA in Main.iter_rows(min_col=1, min_row=startSegment, max_col=1, max_row=dataIndex - 4 - skipOffset):
         cellVal = rowA[0].value
         if cellVal == None:
             continue
+    
+        # Skip Over Bad Segments
+        if numInitCyclesToSkip > 0:
+            if rowA[0].row == startSegment:
+                continue
+            if cellVal.startswith("Segment "):
+                segment = float(cellVal[:-1].split("Segment ")[-1])
+                numInitCyclesToSkip -= 0.5
+            if numInitCyclesToSkip != 0:
+                continue
         
         # Find the Current Segment
-        if cellVal.startswith("Segment "):
+        if cellVal.startswith("Segment "): 
+            # Extract Segment Info
             segment = float(cellVal[:-1].split("Segment ")[-1])
             peakNum = 1
             # It is a New Cycle Everytime we Scan Forwards
             if segment%2 == 1:
                 cycleNum += 1
-            # Stop if Next is Incomplete Segment; Else COntinue Looping
-            if segment == numberOfSegments:
+            # Stop if Next is Incomplete Segment; Else Continue Looping
+            if cycleNum*2 == numberOfSegments+1:
+                print("HERE")
                 break
             continue
         elif cellVal.startswith("Ep = "):
@@ -396,12 +416,15 @@ for CV_CSV_Data in CV_CSV_Data_List:
                         movieGraphLowerLeft = peakPlotHolder[potentialPeak]
                         legendListLowerLeft.append(peakDirection[11:] + " Peak (" + peakNum + "): Ep = " + "%.3g"%Ep[-1] + " Volts ; Ip = " + "%.4g"%Ip[-1] + " Amps")
                         movieGraphLowerLeft.set_data(cycle, Ep)
-                        # Plot Peak Current Standard Error
+                        # ---------------------------------------- #
+                        # Get Plot for Coefficient of VariationList
                         movieGraphLowerRight = peakPlotHolder[statsPeak]
+                        # Add Legend: No Statistics Availible for One Data Point
                         if CoefficientofVariationList[-1] == "NA":
                             legendListLowerRight.append(peakDirection[11:] + " Peak (" + peakNum + "): NA")
                         else:
                             legendListLowerRight.append(peakDirection[11:] + " Peak (" + peakNum + "): Peak Current's Coefficient of Variation = " + "%.3g"%CoefficientofVariation + "%")
+                        # Plot the Data
                         movieGraphLowerRight.set_data(cycle[1:], CoefficientofVariationList[1:])
                 axRight.legend(legendListRight, loc="upper left")
                 if showFullInfo:
@@ -413,7 +436,7 @@ for CV_CSV_Data in CV_CSV_Data_List:
     # Close Writer
     #writer.close()
     plt.show()
-    
+        
     # -----------------------------------------------------------------------#
 
     
