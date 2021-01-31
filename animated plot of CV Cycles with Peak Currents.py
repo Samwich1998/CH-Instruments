@@ -22,7 +22,7 @@ import statistics as stat
 # -------------------------- User Can Edit ----------------------------------#
 
 # Specify Directory/Folder with All the Data (CSV Files Exported from CHI)
-data_Directory = "C:/Users/weiga/Desktop/Sam/NASA Project Cortisol/Prussian Blue/2021/01-21-2021 PBS Printing Day 2/" # The Folder with the CSV Files
+data_Directory = "/Users/samuelsolomon/Desktop/Gao Group/Projects/NASA Project Cortisol/Prussian Blue/2021/01-24-2021 PBS Printing Day 3/" # The Folder with the CSV Files
 
 # Edit What is Plotted
 skipIfDataAlreadyExcel = False  # Skip Over Data if CSV->Excel has Already Been Done (No Graphs!)
