@@ -17,10 +17,14 @@ from scipy.signal import argrelextrema
 # -------------------------- User Can Edit ----------------------------------#
 
 use_All_CSV_Files = True # If False, Populate the CV_CSV_Data_List Yourself in the Next Section Below
+<<<<<<< HEAD
 data_Directory = "C:/Users/weiga/Desktop/Sam/NASA Project Cortisol/Prussian Blue/2021/01-28-2021 Drop Cast MIP DPV Industry/" # The Path to the Folder with the CSV Files
+=======
+data_Directory = "/Users/samuelsolomon/Desktop/Gao Group/Projects/NASA Project Cortisol/Prussian Blue/2021/01-27-2021 PBS NIP/" # The Path to the Folder with the CSV Files
+>>>>>>> fd7def8ef05507a3f10e6d8e856052c3e6d5f91b
 
 # Use CHI's Predicted Peak Values (Must be in CSV/Excel)
-useCHIPeaks = False  # Only Performs Baseline Subtractiomn if CHI Didnt Label a Peak
+useCHIPeaks = True  # Only Performs Baseline Subtractiomn if CHI Didnt Label a Peak
 # If useCHIPeaks is False: THESE ARE SUPER IMPORTANT PARAMETERS THAT WILL CHANGE YOUR PEAK
 order = 1        # Order of the Polynomial Fit in Baseline Calculation
 Iterations = 15  # The Number of Polynomial Fit and Subtractions in Baseline Calculation
@@ -145,7 +149,7 @@ for figNum, CV_CSV_Data in enumerate(sorted(CV_CSV_Data_List)):
     # ----------------------- Extract Run Info ------------------------------#
     
     # Set Initial Variables from last Run to Zero
-    deltaV = None; endVolt = None; initialVolt = None; Vp = None; Ip = None
+    deltaV = None; endVolt = None; initialVolt = None; Vp = None; Ip = None; IpList = []
     # Loop Through the Info Section and Extract the Needxed Run Info from Excel
     for cell in Main['A']:
         # Get Cell Value
@@ -167,7 +171,9 @@ for figNum, CV_CSV_Data in enumerate(sorted(CV_CSV_Data_List)):
             Vp = float(cellVal.split(" = ")[-1][:-1])
         # If Peak Found by CHI, Get Peak Current
         elif cellVal.startswith("ip = "):
-            Ip = float(cellVal.split(" = ")[-1][:-1])
+            IpCurrent = float(cellVal.split(" = ")[-1][:-1])
+            IpList.append(IpCurrent)
+            Ip = max(IpList)  # Assuming Strongest Peak is the True Peak
         elif cellVal == "Potential/V":
             startDataRow = cell.row + 2
             break
@@ -278,7 +284,9 @@ plt.show() # Must be the Last Line
 
 fig = plt.figure(0)
 #fig.tight_layout(pad=3) #tight margins
-fig.set_figwidth(6.5)
+fig.set_figwidth(7.5)
+fig.set_figheight(5)
+legendList = []
 #ax = fig.add_axes([0.1, 0.1, 0.7, 0.9])
 for i,filename in enumerate(sorted(data.keys())):
     # Extract Data from Name
@@ -299,11 +307,6 @@ for i,filename in enumerate(sorted(data.keys())):
     Ip = data[filename]
     
     
-    if i == 8:
-        i += 1
-        time = []
-        current = []
-    
     if i%2 == 0:
         time = [timePoint]
         current  = [Ip]
@@ -312,15 +315,17 @@ for i,filename in enumerate(sorted(data.keys())):
         current.append(Ip)
         
         # Plot Ip
+        fileLegend = filename.split("-")[0]
         plt.plot(time, current, 'o-', label=filename.split("-")[0])
+        legendList.append(fileLegend)
     
     
 # Plot Curves
 plt.title("Time Dependant DPV Peak Current: Cortisol")
 plt.xlabel("Time (minutes)")
 plt.ylabel("DPV Peak Current (Amps)")
-plt.legend(loc=9, bbox_to_anchor=(1.2, 1))
-plt.savefig(outputData + "Time Dependant DPV Curve Cortisol.png", dpi=300)
+lgd = plt.legend(loc=9, bbox_to_anchor=(1.2, 1))
+plt.savefig(outputData + "Time Dependant DPV Curve Cortisol.png", dpi=300, bbox_extra_artists=(lgd,), bbox_inches='tight')
 plt.show()
       
 
