@@ -22,10 +22,10 @@ import statistics as stat
 # -------------------------- User Can Edit ----------------------------------#
 
 # Specify Directory/Folder with All the Data (CSV Files Exported from CHI)
-data_Directory = "C:/Users/weiga/Desktop/Sam/NASA Project Cortisol/Prussian Blue/2021/01-21-2021 PBS Printing Day 2/" # The Folder with the CSV Files
+data_Directory = "C:/Users/weiga/Desktop/Sam/NASA Project Cortisol/Prussian Blue/2021/01-28-2021 PBS Sep Added Day 2/" # The Folder with the CSV Files
 
 # Edit What is Plotted
-skipIfDataAlreadyExcel = False  # Skip Over Data if CSV->Excel has Already Been Done (No Graphs!)
+skipIfDataAlreadyExcel = True  # Skip Over Data if CSV->Excel has Already Been Done (No Graphs!)
 use_All_CSV_Files = True        # If False, Populate the CV_CSV_Data_List Yourself (Choose Your Files Below)
 showPeakCurrent = True          # Display Real-Time Peak Current Data on Right (ONLY IF Peak Current Exists)
 seePastCVData = True            # See All CSV Frames in the Background (with 10% opacity)
