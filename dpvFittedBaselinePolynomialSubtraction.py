@@ -19,9 +19,8 @@ from scipy.signal import argrelextrema
 use_All_CSV_Files = True # If False, Populate the CV_CSV_Data_List Yourself in the Next Section Below
 data_Directory = "C:/Users/weiga/Desktop/Sam/NASA Project Cortisol/Prussian Blue/2021/01-28-2021 Drop Cast MIP DPV Industry/" # The Path to the Folder with the CSV Files
 
-
 # Use CHI's Predicted Peak Values (Must be in CSV/Excel)
-useCHIPeaks = True  # Only Performs Baseline Subtractiomn if CHI Didnt Label a Peak
+useCHIPeaks = False  # Only Performs Baseline Subtractiomn if CHI Didnt Label a Peak
 # If useCHIPeaks is False: THESE ARE SUPER IMPORTANT PARAMETERS THAT WILL CHANGE YOUR PEAK
 order = 1        # Order of the Polynomial Fit in Baseline Calculation
 Iterations = 15  # The Number of Polynomial Fit and Subtractions in Baseline Calculation
