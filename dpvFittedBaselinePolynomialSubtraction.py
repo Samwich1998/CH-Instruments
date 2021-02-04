@@ -17,11 +17,8 @@ from scipy.signal import argrelextrema
 # -------------------------- User Can Edit ----------------------------------#
 
 use_All_CSV_Files = True # If False, Populate the CV_CSV_Data_List Yourself in the Next Section Below
-<<<<<<< HEAD
 data_Directory = "C:/Users/weiga/Desktop/Sam/NASA Project Cortisol/Prussian Blue/2021/01-28-2021 Drop Cast MIP DPV Industry/" # The Path to the Folder with the CSV Files
-=======
-data_Directory = "/Users/samuelsolomon/Desktop/Gao Group/Projects/NASA Project Cortisol/Prussian Blue/2021/01-27-2021 PBS NIP/" # The Path to the Folder with the CSV Files
->>>>>>> fd7def8ef05507a3f10e6d8e856052c3e6d5f91b
+
 
 # Use CHI's Predicted Peak Values (Must be in CSV/Excel)
 useCHIPeaks = True  # Only Performs Baseline Subtractiomn if CHI Didnt Label a Peak
