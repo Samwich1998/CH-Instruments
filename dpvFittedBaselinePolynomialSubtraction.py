@@ -5,6 +5,7 @@ Need to Install on the Anaconda Prompt:
     $ conda install seaborn
     $ conda install scipy
     $ pip install natsort
+    $ pip install BaselineRemoval
 """
 import csv
 import os
@@ -23,13 +24,9 @@ from BaselineRemoval import BaselineRemoval
 
 # -------------------------- User Can Edit ----------------------------------#
 
-<<<<<<< HEAD
 use_All_CSV_Files = True # If False, Populate the dpvFiles Yourself in the Next Section Below
-data_Directory = "/Users/samuelsolomon/Desktop/Gao Group/Projects/Stress Sensor/Norepinephrine/2021/20210602 Testing Ox VS NonOX NE/" # The Path to the Folder with the CSV Files
-=======
-use_All_CSV_Files = True # If False, Populate the CV_CSV_Data_List Yourself in the Next Section Below
-data_Directory = "C:/Users/weiga/Desktop/Sam/NASA Project Cortisol/Prussian Blue/2021/01-28-2021 Drop Cast MIP DPV Industry/" # The Path to the Folder with the CSV Files
->>>>>>> 18e3992b1df32e7d38e07349d69b594f34eba262
+data_Directory = "C:/Users/weiga/Desktop/Sam/NASA Project Stress Sensing/Norepinephrine/2021/20210608 85C NE MIP/" # The Path to the Folder with the CSV Files
+
 
 # Use CHI's Predicted Peak Values (Must be in CSV/Excel)
 useCHIPeaks = False  # Only Performs Baseline Subtractiomn if CHI Didnt Label a Peak
@@ -55,11 +52,32 @@ displayOnlyBaselineSubtraction = True
 # ---------------------------------------------------------------------------#
 # --------------------- Specify/Find File Names -----------------------------#
 
+def txt2csv(txtFile, csvFile):
+    # Check to see if csv conversion alreayd happened
+    if not os.path.isfile(csvFile):
+        # # IF it does ask the user if they want to overwrite it
+        # overwrite = input("File already exists. Type 'y' to overwrite (else anything):   ")
+        # if overwrite.lower() != 'y':
+        #     sys.exit("Code Was Stopped Because Original File Was Going to Be Overwritten")
+        with open(txtFile, "r") as in_text:
+            in_reader = csv.reader(in_text, delimiter = ',')
+            with open(csvFile, 'w', newline='') as out_csv:
+                out_writer = csv.writer(out_csv)
+                for row in in_reader:
+                    out_writer.writerow(row)
+    else:
+        print("You already renamed the '.txt' to 'csv'")
+
 # If Using All the CSV Files in the Folder
 if use_All_CSV_Files:
     dpvFiles = []
     for file in os.listdir(data_Directory):
-        if file.endswith(".csv") and thatDoesntContain not in file and thatContains in file:
+        if file.endswith(".txt"):
+            base = os.path.splitext(file)[0]
+            csvFile = data_Directory + base + ".csv"
+            txt2csv(data_Directory + file, csvFile)
+            dpvFiles.append(base + ".csv")
+        elif file.endswith(".csv") and thatDoesntContain not in file and thatContains in file and file not in dpvFiles:
             dpvFiles.append(file)
     if len(dpvFiles) == 0:
         print("No CSV Files Found in the Data Folder:", data_Directory)
@@ -125,22 +143,7 @@ def getBase(potential, currentReal, Iterations, order):
                 current[i] = baseline[i]
     return baseline
 
-def txt2csv(txtFile, csvFile):
-    # Check to see if csv conversion alreayd happened
-    if not os.path.isfile(csvFile):
-        # # IF it does ask the user if they want to overwrite it
-        # overwrite = input("File already exists. Type 'y' to overwrite (else anything):   ")
-        # if overwrite.lower() != 'y':
-        #     sys.exit("Code Was Stopped Because Original File Was Going to Be Overwritten")
-        with open(txtFile, "r") as in_text:
-            in_reader = csv.reader(in_text, delimiter = '\t')
-            with open(csvFile, 'w', newline='') as out_csv:
-                out_writer = csv.writer(out_csv)
-                for row in in_reader:
-                    out_writer.writerow(row)
-    else:
-        print("You already renamed the '.txt' to 'csv'")
-        print("If not the file is missing \n")
+
         
 
 # ---------------------------------------------------------------------------#
@@ -272,8 +275,8 @@ for figNum, CV_CSV_Data in enumerate(sorted(dpvFiles)):
         # Find Where Data Begins to Deviate from the Edges
         minimums = argrelextrema(baselineCurrent, np.less)[0]
         maximums = argrelextrema(baselineCurrent, np.greater)[0]
-        stopInitial = min(minimums[0], maximums[0]) - 1
-        stopFinal = max(minimums[-1], maximums[0]) + 1
+        stopInitial = min(minimums[0], maximums[0]) + 25
+        stopFinal = max(minimums[-1], maximums[0]) - 25
         
         # Get the Peak Current (Max Differenc between the Data and the Baseline)
         if backwardScan:
@@ -363,7 +366,7 @@ if not useCHIPeaks:
     plt.xlabel("Potential (V)")
     plt.ylabel(yLabel)
     lgd = plt.legend(loc=9, bbox_to_anchor=(1.2, 1))
-    plt.savefig(outputData + "Time Dependant DPV Curve Cortisol.png", dpi=300, bbox_extra_artists=(lgd,), bbox_inches='tight')
+    plt.savefig(outputData + "Time Dependant DPV Curve Norepinephrine Full Curve.png", dpi=300, bbox_extra_artists=(lgd,), bbox_inches='tight')
     plt.xlim(-.5,-.1)
     plt.show()
 
@@ -399,10 +402,62 @@ for i,filename in enumerate(sorted(data.keys())):
     print(filename, timePoint, concentration)
     
     # Get Peak Current
-    Ip = data[filename]["Ip"]
+    Ip = data[filename]["Ip"]*10**6
     
     
-    if i%2 == 0:
+    if 'Round 1' in filename:
+        time = [timePoint]
+        current  = [Ip]
+        Molarity = [concentration]
+    else:
+        time.append(timePoint)
+        current.append(Ip)
+        Molarity.append(concentration)
+        
+        # Plot Ip
+        fileLegend = filename.split("-")[0]
+        plt.plot(Molarity, current, 'o-', label = fileLegend)
+        legendList.append(fileLegend)
+    
+    
+# Plot Curves
+plt.title("Concentration Dependant DPV Peak Current: Norepinephrine")
+plt.xlabel("Concentration (nM)")
+plt.ylabel("DPV Peak Current (uAmps)")
+lgd = plt.legend(loc=9, bbox_to_anchor=(1.2, 1))
+plt.savefig(outputData + "Concentration Dependant DPV Curve Norepinephrine.png", dpi=300, bbox_extra_artists=(lgd,), bbox_inches='tight')
+plt.show()
+
+
+fig = plt.figure(2)
+#fig.tight_layout(pad=3) #tight margins
+fig.set_figwidth(7.5)
+fig.set_figheight(5)
+legendList = []
+#ax = fig.add_axes([0.1, 0.1, 0.7, 0.9])
+for i,filename in enumerate(sorted(data.keys())):
+    # Extract Data from Name
+    stringDigits = re.findall(r'\d+', filename) 
+    digitsInName = list(map(int, stringDigits))
+    if len(digitsInName) == 2:
+        concentration = digitsInName[0]
+        timePoint = digitsInName[1]
+    elif len(digitsInName) == 3:
+        concentration = digitsInName[0]
+        timePoint = digitsInName[2]
+    elif len(digitsInName) == 1:
+        concentration = 0
+        timePoint = digitsInName[0]
+    else:
+        print("Found Too Many Numbers in the FileName")
+        exit
+    print(filename, timePoint, concentration)
+    
+    # Get Peak Current
+    Ip = data[filename]["Ip"]*10**6
+    
+    
+    if 'Round 1' in filename:
         time = [timePoint]
         current  = [Ip]
         Molarity = [concentration]
@@ -418,14 +473,12 @@ for i,filename in enumerate(sorted(data.keys())):
     
     
 # Plot Curves
-plt.title("Concentration Dependant DPV Peak Current: Norepinephrine")
+plt.title("Time Dependant DPV Peak Current: Norepinephrine")
 plt.xlabel("Time (minutes)")
-plt.xlabel("Concentration (nM)")
-plt.ylabel("DPV Peak Current (Amps)")
+plt.ylabel("DPV Peak Current (uAmps)")
 lgd = plt.legend(loc=9, bbox_to_anchor=(1.2, 1))
-plt.savefig(outputData + "Time Dependant DPV Curve Cortisol.png", dpi=300, bbox_extra_artists=(lgd,), bbox_inches='tight')
+plt.savefig(outputData + "Time Dependant DPV Curve Norepinephrine.png", dpi=300, bbox_extra_artists=(lgd,), bbox_inches='tight')
 plt.show()
-      
 
 
 
