@@ -4,85 +4,76 @@ Need to Install on the Anaconda Prompt:
     $ conda install openpyxl
     $ conda install seaborn
     $ conda install scipy
-    $ pip install natsort
 """
 import csv
 import os
-import sys
 import openpyxl as xl
 import matplotlib.pyplot as plt
 import numpy as np
 import re
 import math
 from scipy.signal import argrelextrema
-from natsort import natsorted
-
-# Baseline Subtraction
-from BaselineRemoval import BaselineRemoval
-
 
 # -------------------------- User Can Edit ----------------------------------#
 
-use_All_CSV_Files = True # If False, Populate the dpvFiles Yourself in the Next Section Below
-data_Directory = "/Users/samuelsolomon/Desktop/Gao Group/Projects/Stress Sensor/Norepinephrine/2021/20210602 Testing Ox VS NonOX NE/" # The Path to the Folder with the CSV Files
+use_All_CSV_Files = True # If False, Populate the CV_CSV_Data_List Yourself in the Next Section Below
+<<<<<<< HEAD
+data_Directory = "/Users/samuelsolomon/Desktop/Gao Group/Projects/NASA Project Cortisol/Prussian Blue/2021/01-28-2021 Drop Cast MIP DPV Industry/" # The Path to the Folder with the CSV Files
+=======
+<<<<<<< HEAD
+data_Directory = "C:/Users/weiga/Desktop/Sam/NASA Project Cortisol/Prussian Blue/2021/01-28-2021 Drop Cast MIP DPV Industry/" # The Path to the Folder with the CSV Files
+=======
+data_Directory = "/Users/samuelsolomon/Desktop/Gao Group/Projects/NASA Project Cortisol/Prussian Blue/2021/01-27-2021 PBS NIP/" # The Path to the Folder with the CSV Files
+>>>>>>> fd7def8ef05507a3f10e6d8e856052c3e6d5f91b
+>>>>>>> fb4da092fece6de3b6350435346f8719ef30c3e5
 
 # Use CHI's Predicted Peak Values (Must be in CSV/Excel)
 useCHIPeaks = False  # Only Performs Baseline Subtractiomn if CHI Didnt Label a Peak
 # If useCHIPeaks is False: THESE ARE SUPER IMPORTANT PARAMETERS THAT WILL CHANGE YOUR PEAK
-order = 2        # Order of the Polynomial Fit in Baseline Calculation
-Iterations = 30  # The Number of Polynomial Fit and Subtractions in Baseline Calculation
-useAPI = True
-
-thatDoesntContain = "Round 1"
-thatContains = ""
+order = 1        # Order of the Polynomial Fit in Baseline Calculation
+Iterations = 15  # The Number of Polynomial Fit and Subtractions in Baseline Calculation
 
 # Specify Figure Asthetics
-numSubPlotsX = 2
+numSubplotWidth = 2
 figWidth = 25
 figHeight = 13
 
-scaleCurrent = 1
-yLabel = "Current Desnity (uAmps/$cm^2$)"
-
 # Make Subplots of Only Final Current or Show All Steps
-displayOnlyBaselineSubtraction = True
+displayOnlyBaselineSubtraction = False
 
 # ---------------------------------------------------------------------------#
 # --------------------- Specify/Find File Names -----------------------------#
 
-# If Using All the CSV Files in the Folder
 if use_All_CSV_Files:
-    dpvFiles = []
+    CV_CSV_Data_List = []
     for file in os.listdir(data_Directory):
-        if file.endswith(".csv") and thatDoesntContain not in file and thatContains in file:
-            dpvFiles.append(file)
-    if len(dpvFiles) == 0:
-        print("No CSV Files Found in the Data Folder:", data_Directory)
-        sys.exit()
-    
-    # Specify Which Files to Ignore
-    ignoreFiles = []
-
-# Else Specify Which Files You Want to use
+        if file.endswith(".csv"):
+            CV_CSV_Data_List.append(file)
 else:
-    dpvFiles = [
+    CV_CSV_Data_List = [
          'New PB Heat 100C (1).csv',
+         'New PB Heat 100C + Sonicate (2).csv',
+         'New PB Heat 100C + Sonicate + Pellet of Centrifuge (3).csv',
+         'New PB Heat 100C + Sonicate + Supernatant of Centrifuge (3).csv',
+         'New PB Heat 100C + Sonicate + Supernatant of Centrifuge + Filter (4).csv',
          ]
     
     # Check to see if the Inputed CSV Files Exist
-    for CV_CSV_Data in dpvFiles:    
+    for CV_CSV_Data in CV_CSV_Data_List:    
         if not os.path.isfile(data_Directory + CV_CSV_Data):
             print("The File ", data_Directory + CV_CSV_Data," Mentioned Does NOT Exist")
-            sys.exit()
-        
-    # Not Ignoring Any Files
-    ignoreFiles = []
+            exit()
 
-# Sort Files
-natsorted(dpvFiles)
-# Create Output Folder if the One Given Does Not Exist
-outputData = data_Directory +  "Peak_Current_Plots/"
-os.makedirs(outputData, exist_ok = True)
+# Specify Which Files to Ignore
+ignoreFiles = []
+
+# Create Output Folder if None
+try:
+    outputData = data_Directory +  "Peak_Current_Plots/"
+    os.mkdir(outputData)
+# Else, Continue On
+except:
+    pass
 
 # ---------------------- User Does NOT Have to Edit -------------------------#
 # ---------------------------------------------------------------------------#
@@ -96,7 +87,7 @@ def saveplot(fig1, axisLimits, base, outputData):
     # Plot and Save
     plt.title(base + " DPV Graph")
     plt.xlabel("Potential (V)")
-    plt.ylabel(yLabel)
+    plt.ylabel("Current (Amps)")
     plt.ylim(axisLimits)
     plt.legend()
     fig1.savefig(outputData + base + ".png", dpi=300)
@@ -119,34 +110,17 @@ def getBase(potential, currentReal, Iterations, order):
             if current[i] > baseline[i]:
                 current[i] = baseline[i]
     return baseline
-
-def txt2csv(txtFile, csvFile):
-    # Check to see if csv conversion alreayd happened
-    if not os.path.isfile(csvFile):
-        # # IF it does ask the user if they want to overwrite it
-        # overwrite = input("File already exists. Type 'y' to overwrite (else anything):   ")
-        # if overwrite.lower() != 'y':
-        #     sys.exit("Code Was Stopped Because Original File Was Going to Be Overwritten")
-        with open(txtFile, "r") as in_text:
-            in_reader = csv.reader(in_text, delimiter = '\t')
-            with open(csvFile, 'w', newline='') as out_csv:
-                out_writer = csv.writer(out_csv)
-                for row in in_reader:
-                    out_writer.writerow(row)
-    else:
-        print("You already renamed the '.txt' to 'csv'")
-        print("If not the file is missing \n")
         
 
 # ---------------------------------------------------------------------------#
 # -------------------- Extract and Plot the Ip Data -------------------------#
 
 # Create One Plot with All the DPV Curves
-fig, ax = plt.subplots(math.ceil(len(dpvFiles)/numSubPlotsX), numSubPlotsX, sharey=False, sharex = True, figsize=(figWidth,figHeight))
+fig, ax = plt.subplots(math.ceil(len(CV_CSV_Data_List)/numSubplotWidth), numSubplotWidth, sharey=False, sharex = True, figsize=(figWidth,figHeight))
 fig.tight_layout(pad=3.0)
 data = {}  # Store Results ina Dictionary for Later Analaysis
 # For Each CSV File, Extract the Important Data and Plot
-for figNum, CV_CSV_Data in enumerate(sorted(dpvFiles)):
+for figNum, CV_CSV_Data in enumerate(sorted(CV_CSV_Data_List)):
     if CV_CSV_Data in ignoreFiles:
         continue
     
@@ -217,7 +191,6 @@ for figNum, CV_CSV_Data in enumerate(sorted(dpvFiles)):
     # Get Potential, Current Data from Excel
     potential = []
     current = []
-    baselineCurrent = []; baseline = []
     for cell in Main['A'][startDataRow - 1:]:
         # Break out of Loop if no More Data (edge effect if someone edits excel)
         if cell.value == None:
@@ -226,17 +199,10 @@ for figNum, CV_CSV_Data in enumerate(sorted(dpvFiles)):
         row = cell.row - 1
         potential.append(float(cell.value))
         current.append(float(Main['B'][row].value))
-    current = np.array(current)*scaleCurrent
-    potential = np.array(potential)
-    
-    numNeg = sum(1 for currentVal in current if currentVal < 0)
-    backwardScan = numNeg > len(current)/2
         
     # Plot the Initial Data
     fig1 = plt.figure(2+figNum) # Leaving 2 Figures Free for Other plots
     plt.plot(potential, current, label="True Data: " + base, color='C0')
-    
-    
     
     # If We use the CHI Peaks, Skip Peak Detection
     if useCHIPeaks and Ip != None and Vp != None:
@@ -246,58 +212,41 @@ for figNum, CV_CSV_Data in enumerate(sorted(dpvFiles)):
     # Else, Perform baseline Subtraction to Find the peak
     else:
         # Get Baseline
-        if backwardScan:
-            if useAPI:
-                baseObj = BaselineRemoval(-current)
-                baseline = current + baseObj.ModPoly(order)
-            else:
-                baseline = - getBase(potential, -current, Iterations, order)
-        else:
-            if useAPI:
-                baseObj = BaselineRemoval(current)
-                baseline = current - baseObj.ModPoly(order)
-            else:
-                baseline = getBase(potential, current, Iterations, order)
-        baselineCurrent = current - baseline
+        baseline = getBase(potential, current, Iterations, order)
         
         # Plot Subtracted baseline
+        baselineCurrent = current - baseline
         plt.plot(potential, baselineCurrent, label="Current After Baseline Subtraction", color='C2')
         plt.plot(potential, baseline, label="Baseline Current", color='C1')  
         
         # Find Where Data Begins to Deviate from the Edges
         minimums = argrelextrema(baselineCurrent, np.less)[0]
-        maximums = argrelextrema(baselineCurrent, np.greater)[0]
-        stopInitial = min(minimums[0], maximums[0]) - 1
-        stopFinal = max(minimums[-1], maximums[0]) + 1
+        stopInitial = minimums[0]
+        stopFinal = minimums[-1]
         
         # Get the Peak Current (Max Differenc between the Data and the Baseline)
-        if backwardScan:
-            IpIndex = np.argmin(baselineCurrent[stopInitial:stopFinal+1])
-        else:
-            IpIndex = np.argmax(baselineCurrent[stopInitial:stopFinal+1])
+        IpIndex = np.argmax(baselineCurrent[stopInitial:stopFinal+1])
         Ip = baselineCurrent[stopInitial+IpIndex]
         Vp = potential[stopInitial+IpIndex]
     
         # Plot the Peak Current (Verticle Line) for Visualization
-        axisLimits = [min(*baselineCurrent,*current,*baseline), max(*baselineCurrent,*current,*baseline)]
-        axisLimits[0] -= (axisLimits[1] - axisLimits[0])/10
-        axisLimits[1] += (axisLimits[1] - axisLimits[0])/10
-        plt.axvline(x=Vp, ymin=normalize(baseline[stopInitial+IpIndex], axisLimits[0], axisLimits[1]), ymax=normalize(float(Ip + baseline[stopInitial+IpIndex]), axisLimits[0], axisLimits[1]), linewidth=2, color='r', label="Peak Current: " + "%.4g"%Ip)
+        axisLimits = [min(baselineCurrent) - min(baselineCurrent)/10, max(current) + max(current)/10]
+        plt.axvline(x=Vp, ymin=normalize(baseline[stopInitial+IpIndex], axisLimits[0], axisLimits[1]), ymax=normalize(float(Ip+baseline[stopInitial+IpIndex]), axisLimits[0], axisLimits[1]), linewidth=2, color='r', label="Peak Current: " + "%.4g"%Ip)
     
     # Save Figure
     saveplot(fig1, axisLimits, base, outputData)
     
     # Keep Running Subplots Order
-    if numSubPlotsX == 1 and len(dpvFiles) == 1:
+    if numSubplotWidth == 1 and len(CV_CSV_Data_List) == 1:
         currentAxes = ax
-    elif numSubPlotsX == 1:
+    elif numSubplotWidth == 1:
         currentAxes = ax[figNum]
-    elif numSubPlotsX == len(dpvFiles):
+    elif numSubplotWidth == len(CV_CSV_Data_List):
         currentAxes = ax[figNum]
-    elif numSubPlotsX > 1:
-        currentAxes = ax[figNum//numSubPlotsX][figNum%numSubPlotsX]
+    elif numSubplotWidth > 1:
+        currentAxes = ax[figNum//numSubplotWidth][figNum%numSubplotWidth]
     else:
-        print("numSubPlotsX CANNOT be < 1. Currently it is: ", numSubPlotsX)
+        print("numSubplotWidth CANNOT be < 1. Currently it is: ", numSubplotWidth)
         exit
     
     # Plot Data in Subplots
@@ -308,24 +257,21 @@ for figNum, CV_CSV_Data in enumerate(sorted(dpvFiles)):
     elif displayOnlyBaselineSubtraction:
         currentAxes.plot(potential, baselineCurrent, label="Current After Baseline Subtraction", color='C1')
         currentAxes.axvline(x=Vp, ymin=normalize(0, currentAxes.get_ylim()[0], currentAxes.get_ylim()[1]), ymax=normalize(float(Ip), currentAxes.get_ylim()[0], currentAxes.get_ylim()[1]), linewidth=2, color='r', label="Peak Current: " + "%.4g"%Ip)
-        currentAxes.axhline(y = 0, color='r', linestyle='--')
         currentAxes.legend(loc='upper left')  
     else:
         currentAxes.plot(potential, current, label="True Data: " + base, color='C0')
         currentAxes.plot(potential, baselineCurrent, label="Current After Baseline Subtraction", color='C2')
-        currentAxes.plot(potential, baseline, label="Baseline Current", color='C1')  
         currentAxes.axvline(x=Vp, ymin=normalize(baseline[stopInitial+IpIndex], currentAxes.get_ylim()[0], currentAxes.get_ylim()[1]), ymax=normalize(float(Ip+baseline[stopInitial+IpIndex]), currentAxes.get_ylim()[0], currentAxes.get_ylim()[1]), linewidth=2, color='r', label="Peak Current: " + "%.4g"%Ip)
+        currentAxes.plot(potential, baseline, label="Baseline Current", color='C1')  
         currentAxes.legend(loc='best')  
 
+
     currentAxes.set_xlabel("Potential (V)")
-    currentAxes.set_ylabel(yLabel)
+    currentAxes.set_ylabel("Current (Amps)")
     currentAxes.set_title(base)
     
     # Save Data in a Dictionary for Plotting Later
-    data[base] = {}
-    data[base]["Ip"] = Ip
-    data[base]["baselineCurrent"] = baselineCurrent
-    data[base]["potential"] = potential
+    data[base] = Ip
     
             
 # ---------------------------------------------------------------------------#
@@ -339,37 +285,8 @@ plt.show() # Must be the Last Line
 # -------------- Specific Plotting Method for This Data ---------------------#
 # ----------------- USER SPECIFIC (USER SHOULD EDIT) ------------------------#
 
-if not useCHIPeaks:
-    fig = plt.figure(0)
-    #fig.tight_layout(pad=3) #tight margins
-    fig.set_figwidth(7.5)
-    fig.set_figheight(5)
-    #ax = fig.add_axes([0.1, 0.1, 0.7, 0.9])
-    for i,filename in enumerate(sorted(data.keys())):
-        
-    
-        # Get Peak Current
-        baselineCurrent = data[filename]["baselineCurrent"]
-        potential = data[filename]["potential"]
-        plt.plot(potential, baselineCurrent, label=filename)    
-        
-    # Plot Curves
-    plt.title("DPV Current After Baseline Subtraction")
-    plt.xlabel("Potential (V)")
-    plt.ylabel(yLabel)
-    lgd = plt.legend(loc=9, bbox_to_anchor=(1.2, 1))
-    plt.savefig(outputData + "Time Dependant DPV Curve Cortisol.png", dpi=300, bbox_extra_artists=(lgd,), bbox_inches='tight')
-    plt.xlim(-.5,-.1)
-    plt.show()
 
-
-
-
-
-
-#sys.exit()
-
-fig = plt.figure(1)
+fig = plt.figure(0)
 #fig.tight_layout(pad=3) #tight margins
 fig.set_figwidth(7.5)
 fig.set_figheight(5)
@@ -382,9 +299,6 @@ for i,filename in enumerate(sorted(data.keys())):
     if len(digitsInName) == 2:
         concentration = digitsInName[0]
         timePoint = digitsInName[1]
-    elif len(digitsInName) == 3:
-        concentration = digitsInName[0]
-        timePoint = digitsInName[2]
     elif len(digitsInName) == 1:
         concentration = 0
         timePoint = digitsInName[0]
@@ -394,28 +308,25 @@ for i,filename in enumerate(sorted(data.keys())):
     print(filename, timePoint, concentration)
     
     # Get Peak Current
-    Ip = data[filename]["Ip"]
+    Ip = data[filename]
     
     
     if i%2 == 0:
         time = [timePoint]
         current  = [Ip]
-        Molarity = [concentration]
     else:
         time.append(timePoint)
         current.append(Ip)
-        Molarity.append(concentration)
         
         # Plot Ip
         fileLegend = filename.split("-")[0]
-        plt.plot(time, current, 'o-', label = fileLegend)
+        plt.plot(time, current, 'o-', label=filename.split("-")[0])
         legendList.append(fileLegend)
     
     
 # Plot Curves
-plt.title("Concentration Dependant DPV Peak Current: Norepinephrine")
+plt.title("Time Dependant DPV Peak Current: Cortisol")
 plt.xlabel("Time (minutes)")
-plt.xlabel("Concentration (nM)")
 plt.ylabel("DPV Peak Current (Amps)")
 lgd = plt.legend(loc=9, bbox_to_anchor=(1.2, 1))
 plt.savefig(outputData + "Time Dependant DPV Curve Cortisol.png", dpi=300, bbox_extra_artists=(lgd,), bbox_inches='tight')
