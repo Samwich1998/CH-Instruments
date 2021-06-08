@@ -23,8 +23,13 @@ from BaselineRemoval import BaselineRemoval
 
 # -------------------------- User Can Edit ----------------------------------#
 
+<<<<<<< HEAD
 use_All_CSV_Files = True # If False, Populate the dpvFiles Yourself in the Next Section Below
 data_Directory = "/Users/samuelsolomon/Desktop/Gao Group/Projects/Stress Sensor/Norepinephrine/2021/20210602 Testing Ox VS NonOX NE/" # The Path to the Folder with the CSV Files
+=======
+use_All_CSV_Files = True # If False, Populate the CV_CSV_Data_List Yourself in the Next Section Below
+data_Directory = "C:/Users/weiga/Desktop/Sam/NASA Project Cortisol/Prussian Blue/2021/01-28-2021 Drop Cast MIP DPV Industry/" # The Path to the Folder with the CSV Files
+>>>>>>> 18e3992b1df32e7d38e07349d69b594f34eba262
 
 # Use CHI's Predicted Peak Values (Must be in CSV/Excel)
 useCHIPeaks = False  # Only Performs Baseline Subtractiomn if CHI Didnt Label a Peak
